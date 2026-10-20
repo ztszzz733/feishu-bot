@@ -1,0 +1,19 @@
+[Unit]
+Description=Feishu LLM Bot (long connection)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=YOUR_USER
+WorkingDirectory=/home/YOUR_USER/feishu-bot
+Environment=PYTHONUNBUFFERED=1
+Environment=PYTHONIOENCODING=utf-8
+ExecStart=/home/YOUR_USER/feishu-bot/.venv/bin/python /home/YOUR_USER/feishu-bot/bot.py
+Restart=always
+RestartSec=5
+StartLimitIntervalSec=60
+StartLimitBurst=10
+
+[Install]
+WantedBy=multi-user.target
