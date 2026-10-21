@@ -1,0 +1,57 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.9", "3.10"]
+    env:
+      PYTHONIOENCODING: utf-8
+      PYTHONUNBUFFERED: "1"
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 守卫：.env 不能被提交
+        run: |
+          if git ls-files --error-unmatch .env >/dev/null 2>&1; then
+            echo "::error::.env 被提交进仓库了，里面有真实密钥"
+            exit 1
+          fi
+          echo "ok: .env 未被跟踪"
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: 安装锁定依赖
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.lock
+
+      - name: 语法检查
+        run: python -m compileall -q bot.py config.py llm.py offline_check.py selftest.py
+
+      - name: 单元自测
+        run: python selftest.py
+
+      - name: 端到端自检（本地假模型，不需要凭据）
+        run: python offline_check.py
+
+  deploy-hint:
+    needs: test
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - name: 提示后续部署步骤
+        run: |
+          echo "CI 通过。部署需要手动执行："
+          echo "  ssh ali \"cd /root/bot && git pull && systemctl restart feishu-bot\""
